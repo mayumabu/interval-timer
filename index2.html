@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1018">
+<title>インターバルタイマー</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1018;--panel:#171f2b;--blue:#28aaff;--muted:#7d899a;--red:#ff4059}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at top,#172437 0%,var(--bg) 58%);color:#f5f8fc;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;min-height:100vh;display:flex;justify-content:center}
+.app{width:min(100%,560px);padding:24px 20px 30px;text-align:center}
+header{display:flex;align-items:center;justify-content:center;gap:12px;margin:4px 0 25px}
+.logo{font-size:34px}h1{font-size:clamp(21px,5vw,28px);margin:0;text-align:left;letter-spacing:.03em}header p{margin:5px 0 0;color:#aeb9c9;font-size:13px;text-align:left}
+.ring{width:min(76vw,330px);aspect-ratio:1;margin:0 auto 24px;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(var(--blue) var(--progress,100%),#293241 0);transition:background .2s}
+.ring:before{content:"";position:absolute;inset:11px;border-radius:50%;background:#0d131d;box-shadow:inset 0 0 30px #101a28}
+.center{position:relative;z-index:1}
+.phase{display:inline-block;border-radius:999px;padding:7px 22px;background:var(--blue);color:#06111c;font-weight:800;font-size:17px;margin-bottom:12px}
+.time{font-size:clamp(56px,15vw,82px);font-weight:800;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.sub{color:#aeb9c9;margin-top:12px;font-size:14px}
+.pills{display:flex;gap:10px;justify-content:center;margin:0 0 18px;flex-wrap:wrap}
+.pill{padding:10px 18px;border:1px solid #3a4658;border-radius:999px;color:#c5cfdd;background:#1b2431;font-weight:700}
+.pill.active{border-color:var(--blue);background:#102f50;color:#fff;box-shadow:0 0 0 1px #168de0}
+.dots{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin:18px auto 8px;max-width:420px}
+.dot{width:10px;height:10px;border-radius:50%;background:#374253}.dot.done{background:var(--blue);box-shadow:0 0 8px #168de055}.dot.current{outline:2px solid #b7e6ff;outline-offset:3px}
+.round{color:#c5cfdd;margin-bottom:22px;font-size:16px}
+.controls{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:12px;align-items:start;margin:0 auto 22px;max-width:410px}
+button{font:inherit;cursor:pointer;border:0;color:#fff}
+.control{height:68px;width:68px;border-radius:50%;background:#1c2634;border:1px solid #4a5668;font-size:25px;justify-self:center}
+.stop{height:68px;border-radius:999px;background:var(--red);font-size:25px;font-weight:800;width:100%;max-width:145px;justify-self:center}
+.caption{font-size:13px;color:#c5cfdd;margin-top:8px}
+.settings{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:left;background:#151e2a;border:1px solid #283447;border-radius:18px;padding:16px}
+label{font-size:12px;color:#aeb9c9;display:block;margin-bottom:7px}
+input{width:100%;background:#0d141f;color:#fff;border:1px solid #3a4658;border-radius:10px;padding:10px;font:inherit}
+.note{color:#77869a;font-size:12px;line-height:1.6;margin:14px 0 0}
+button:focus-visible,input:focus-visible{outline:2px solid #8ed7ff;outline-offset:3px}
+@media(max-width:360px){.app{padding:18px 12px}.settings{padding:12px;gap:7px}.pill{padding:8px 12px}.control,.stop{height:60px}.control{width:60px}}
+</style>
+</head>
+<body>
+<main class="app">
+  <header><div class="logo">🏃</div><div><h1>インターバルタイマー</h1><p>運動と休憩を自動で繰り返します</p></div></header>
+  <section class="ring" id="ring" style="--progress:100%">
+    <div class="center">
+      <div class="phase" id="phase">準備OK</div>
+      <div class="time" id="time">00:45</div>
+      <div class="sub" id="sub">スタートを押してください</div>
+    </div>
+  </section>
+  <div class="pills"><div class="pill active" id="exercisePill">運動 45秒</div><div class="pill" id="restPill">休憩 5秒</div></div>
+  <div class="dots" id="dots"></div>
+  <div class="round" id="round">全10セット</div>
+  <div class="controls">
+    <div><button class="control" id="startPause" aria-label="スタート">▶</button><div class="caption" id="startLabel">スタート</div></div>
+    <div><button class="stop" id="stop">■</button><div class="caption">終了</div></div>
+    <div><button class="control" id="reset" aria-label="リセット">↻</button><div class="caption">リセット</div></div>
+  </div>
+  <section class="settings" style="grid-template-columns:1fr 1fr; margin-bottom:10px">
+    <div><label for="voice">音声アナウンス</label><select id="voice" style="width:100%;background:#0d141f;color:#fff;border:1px solid #3a4658;border-radius:10px;padding:10px;font:inherit"><option value="on">オン</option><option value="off">オフ</option></select></div>
+    <div><label for="countdown">終了前カウントダウン</label><select id="countdown" style="width:100%;background:#0d141f;color:#fff;border:1px solid #3a4658;border-radius:10px;padding:10px;font:inherit"><option value="on">3・2・1を読み上げ</option><option value="off">なし</option></select></div>
+  </section>
+  <section class="settings">
+    <div><label for="exercise">運動（秒）</label><input id="exercise" type="number" min="1" max="5999" value="45"></div>
+    <div><label for="rest">休憩（秒）</label><input id="rest" type="number" min="1" max="5999" value="5"></div>
+    <div><label for="rounds">セット数</label><input id="rounds" type="number" min="1" max="99" value="10"></div>
+  </section>
+  <p class="note">運動・休憩の秒数とセット数を変更してからスタートできます。休憩開始は低めの音2回＋「休憩」、運動開始は高めの音1回＋「運動開始」、終了時は完了音＋読み上げでお知らせします。音声を使う場合はスマホの音量を上げてください。端末やブラウザによっては画面消灯中の音声再生が制限されることがあります。</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let exercise=45,rest=5,totalRounds=10,round=1,phase='exercise',remaining=45,running=false,finished=false,lastTick=0,raf=0,audio=null,wakeLock=null;
+async function keepScreenAwake(){try{if('wakeLock'in navigator && running && document.visibilityState==='visible'){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null})}}catch(e){}}
+async function releaseScreenAwake(){try{if(wakeLock){await wakeLock.release();wakeLock=null}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&running)keepScreenAwake()});
+function readSettings(){exercise=Math.max(1,Math.min(5999,parseInt($('exercise').value)||45));rest=Math.max(1,Math.min(5999,parseInt($('rest').value)||5));totalRounds=Math.max(1,Math.min(99,parseInt($('rounds').value)||10));}
+function fmt(n){const m=Math.floor(n/60),s=n%60;return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
+function beep(freq=740,duration=.12){try{audio=audio||new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();const o=audio.createOscillator(),g=audio.createGain();o.frequency.value=freq;o.type='sine';g.gain.setValueAtTime(.12,audio.currentTime);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);o.connect(g);g.connect(audio.destination);o.start();o.stop(audio.currentTime+duration)}catch(e){}}
+function speak(message){if($('voice').value!=='on'||!('speechSynthesis'in window))return;try{window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(message);u.lang='ja-JP';u.rate=1.05;u.volume=1;window.speechSynthesis.speak(u)}catch(e){}}
+function render(){
+  const length=phase==='exercise'?exercise:rest;
+  $('time').textContent=fmt(remaining);
+  $('phase').textContent=finished?'完了！':phase==='exercise'?'運動中':'休憩中';
+  $('phase').style.background=phase==='exercise'?'var(--blue)':'#ffc857';
+  $('phase').style.color='#07111c';
+  $('sub').textContent=finished?'おつかれさまでした！':running?'残り '+remaining+' 秒':remaining===length?'スタートを押してください':'一時停止中';
+  $('exercisePill').textContent=`運動 ${exercise}秒`;
+  $('restPill').textContent=`休憩 ${rest}秒`;
+  $('exercisePill').classList.toggle('active',phase==='exercise'&&!finished);
+  $('restPill').classList.toggle('active',phase==='rest'&&!finished);
+  $('ring').style.setProperty('--progress',(remaining/length*100)+'%');
+  $('ring').style.background=`conic-gradient(${phase==='exercise'?'var(--blue)':'#ffc857'} var(--progress),#293241 0)`;
+  $('round').textContent=finished?`${totalRounds}セット完了`:`${round} / ${totalRounds} セット`;
+  $('startPause').textContent=running?'Ⅱ':finished?'↻':'▶';
+  $('startLabel').textContent=running?'一時停止':finished?'もう一度':'スタート';
+  $('dots').innerHTML=Array.from({length:totalRounds},(_,i)=>`<span class="dot ${i<round-1||finished?'done':i===round-1?'current':''}"></span>`).join('');
+}
+function reset(){cancelAnimationFrame(raf);running=false;finished=false;round=1;phase='exercise';remaining=exercise;render();}
+function transition(){
+  if(phase==='exercise'){
+    phase='rest';remaining=rest;
+    // 休憩開始：低めの音を2回＋日本語音声
+    beep(520,.16);setTimeout(()=>beep(520,.16),220);
+    speak('休憩');
+  }else{
+    if(round>=totalRounds){
+      running=false;finished=true;remaining=0;
+      beep(1040,.18);setTimeout(()=>beep(1320,.3),240);
+      speak('終了です。おつかれさまでした');
+      render();return;
+    }
+    round++;phase='exercise';remaining=exercise;
+    // 運動開始：高めの音を1回＋日本語音声
+    beep(880,.24);
+    speak('運動開始');
+  }
+  render();
+}
+function tick(now){if(!running)return;if(!lastTick)lastTick=now;const elapsed=(now-lastTick)/1000;if(elapsed>=1){const seconds=Math.floor(elapsed);lastTick+=seconds*1000;const oldRemaining=remaining;remaining-=seconds;
+if($('countdown').value==='on' && oldRemaining>1 && remaining>=1 && remaining<=3){speak(String(remaining));beep(950,.06)}
+while(remaining<=0&&running&&!finished){const overflow=-remaining;transition();if(!finished)remaining-=overflow;}render()}raf=requestAnimationFrame(tick)}
+$('startPause').addEventListener('click',()=>{if(finished){reset();running=true;lastTick=0;keepScreenAwake();speak('運動開始！');render();raf=requestAnimationFrame(tick);return}if(!running){if(round===1&&phase==='exercise'&&remaining===exercise)readSettings();running=true;lastTick=0;beep(600,.07);speak('運動開始！');keepScreenAwake();render();raf=requestAnimationFrame(tick)}else{running=false;cancelAnimationFrame(raf);releaseScreenAwake();if('speechSynthesis'in window)window.speechSynthesis.cancel();render()}});
+$('stop').addEventListener('click',()=>{running=false;finished=true;remaining=0;cancelAnimationFrame(raf);releaseScreenAwake();if('speechSynthesis'in window)window.speechSynthesis.cancel();render()});
+$('reset').addEventListener('click',()=>{readSettings();reset();releaseScreenAwake();if('speechSynthesis'in window)window.speechSynthesis.cancel()});
+['exercise','rest','rounds'].forEach(id=>$(id).addEventListener('change',()=>{if(!running){readSettings();reset()}}));
+readSettings();reset();
+</script>
+</body>
+</html>
